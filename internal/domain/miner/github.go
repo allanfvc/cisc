@@ -1,8 +1,9 @@
 package miner
 
 import (
-	"github.com/allanfvc/cisc-action/internal/domain/github"
-	"time"
+  "github.com/allanfvc/cisc/internal/domain/github"
+  "sort"
+  "time"
 )
 
 type GitHubCIDetector struct {
@@ -18,7 +19,7 @@ func (g GitHubCIDetector) RetrieveBuildHistory(owner string, project string) (*B
 	if err != nil {
 		return nil, err
 	}
-	builds :=  make(map[string]map[time.Time]BuildPoint)
+	builds := make(map[string]map[time.Time]BuildPoint)
 	var runs []github.WorkflowRun
 	for _, workflow := range workflows {
 		workflowRuns, err := g.client.ListWorkflowRunsByID(owner, project, workflow.ID)
@@ -48,6 +49,25 @@ func (g GitHubCIDetector) RetrieveBuildHistory(owner string, project string) (*B
 		Builds:  builds,
 	}
 	return history, nil
+}
+
+func (g GitHubCIDetector) LinearizeBuildHistory(builds *BuildHistory) (map[time.Time]BuildPoint, error) {
+  linearHistory := make(map[time.Time]BuildPoint)
+  var keys []time.Time
+  for _, build := range builds.Builds {
+    for key, value := range build {
+      linearHistory[key] = value
+      keys = append(keys, key)
+    }
+  }
+  sort.Slice(keys, func(i, j int) bool {
+    return keys[i].Before(keys[j])
+  })
+  orderedHistory := make(map[time.Time]BuildPoint)
+  for _, key := range keys {
+    orderedHistory[key] = linearHistory[key]
+  }
+  return orderedHistory, nil
 }
 
 func convertWorkFlowRunToBuildPoint(run github.WorkflowRun) *BuildPoint {

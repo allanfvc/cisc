@@ -1,5 +1,11 @@
 package build
 
 type Runner interface {
-	Run(owner, project string)
+	Run(config RunConfig)
+}
+
+type RunConfig struct {
+	Owner          string
+	Project        string
+	MainBranchName string
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/allanfvc/cisc-action/utils"
+	"github.com/allanfvc/cisc/utils"
 	"github.com/hasura/go-graphql-client"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -65,7 +65,7 @@ func (g *GitHub) ListWorkflowRunsByID(owner, repo string, ID int) ([]WorkflowRun
 	page := 0
 	perPage := 4
 
-	response, err := g.listPagedWorkflowRunsByID(owner, repo, ID,page, perPage)
+	response, err := g.listPagedWorkflowRunsByID(owner, repo, ID, page, perPage)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +86,8 @@ func (g GitHub) listPagedWorkflowRunsByID(owner, repo string, ID, page, perPage 
 		return nil, err
 	}
 	body, _ := io.ReadAll(res.Body)
+  body2 := make(map[string]interface{})
+  err = json.Unmarshal(body, &body2)
 	response := &WorkflowRunResponse{}
 	err = json.Unmarshal(body, response)
 	var runs []WorkflowRun

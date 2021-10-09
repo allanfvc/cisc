@@ -24,19 +24,20 @@ type WorkflowResponse struct {
 }
 
 type WorkflowRun struct {
-	ID            int       `json:"id"`
-	NodeId        string    `json:"node_id"`
-	Branch        string    `json:"head_branch"`
-	WorkflowID    int       `json:"workflow_id"`
-	LogsUrl       string    `json:"logs_url"`
-	LogContent    string    `json:"-"`
-	Status        string    `json:"status"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	Conclusion    string    `json:"conclusion"`
-	Duration      int64     `json:"duration"`
-	DurationHuman string    `json:"readable_duration"`
-	Event         string    `json:"event"`
+	ID            int        `json:"id"`
+	NodeId        string     `json:"node_id"`
+	Branch        string     `json:"head_branch"`
+	WorkflowID    int        `json:"workflow_id"`
+	LogsUrl       string     `json:"logs_url"`
+	LogContent    string     `json:"-"`
+	Status        string     `json:"status"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	Conclusion    string     `json:"conclusion"`
+	Duration      int64      `json:"duration"`
+	DurationHuman string     `json:"readable_duration"`
+	Event         string     `json:"event"`
+	HeadCommit    HeadCommit `json:"head_commit"`
 }
 
 func (w *WorkflowRun) IsLogExpired() bool {
@@ -79,4 +80,17 @@ func (w *WorkflowRun) String() string {
 type WorkflowRunResponse struct {
 	TotalCount  int           `json:"total_count"`
 	WorkflowRun []WorkflowRun `json:"workflow_runs"`
+}
+
+type HeadCommit struct {
+	ID        string    `json:"id"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+	Author    GitUser    `json:"author"`
+	Committer  GitUser    `json:"committer"`
+}
+
+type GitUser struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
