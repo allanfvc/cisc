@@ -23,12 +23,23 @@ type GitHub struct {
 }
 
 func NewGithubClient(token string, url string) *GitHub {
-	src := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	httpClient := oauth2.NewClient(context.Background(), src)
-	client := graphql.NewClient(url+GraphqlEndpoint, httpClient)
-	return &GitHub{ApiURl: url, GraphqlClient: client, RestClient: httpClient}
+  validateGithubClientParams(token, url)
+  src := oauth2.StaticTokenSource(
+    &oauth2.Token{AccessToken: token},
+  )
+  httpClient := oauth2.NewClient(context.Background(), src)
+  client := graphql.NewClient(url+GraphqlEndpoint, httpClient)
+  return &GitHub{ApiURl: url, GraphqlClient: client, RestClient: httpClient}
+}
+
+func validateGithubClientParams(token string, url string) {
+  if token == "" {
+    log.Fatal("the github token cannot be empty")
+  }
+
+  if url == "" {
+    log.Fatal("the github url cannot be empty")
+  }
 }
 
 func (g GitHub) ListWorkflows(owner, repo string) ([]Workflow, error) {
