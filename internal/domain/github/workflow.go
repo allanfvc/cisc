@@ -28,6 +28,7 @@ type WorkflowRun struct {
 	NodeId        string     `json:"node_id"`
 	Branch        string     `json:"head_branch"`
 	WorkflowID    int        `json:"workflow_id"`
+	JobsUrl       string     `json:"jobs_url"`
 	LogsUrl       string     `json:"logs_url"`
 	LogContent    string     `json:"-"`
 	Status        string     `json:"status"`
@@ -38,6 +39,7 @@ type WorkflowRun struct {
 	DurationHuman string     `json:"readable_duration"`
 	Event         string     `json:"event"`
 	HeadCommit    HeadCommit `json:"head_commit"`
+	Jobs          []WorkflowRunJob
 }
 
 func (w *WorkflowRun) IsLogExpired() bool {
@@ -52,6 +54,28 @@ func (w *WorkflowRun) duration() {
 
 }
 
+type WorkflowRunJobResponse struct {
+	TotalCount int              `json:"total_count"`
+	Jobs       []WorkflowRunJob `json:"jobs"`
+}
+
+type WorkflowRunJob struct {
+	ID          int                  `json:"id"`
+	RunID       int                  `json:"run_id"`
+	RunUrl      string               `json:"run_url"`
+	RunAttempt  int                  `json:"run_attempt"`
+	NodeId      string               `json:"node_id"`
+	HeadSha     string               `json:"head_sha"`
+	Url         string               `json:"url"`
+	HtmlUrl     string               `json:"html_url"`
+	Status      string               `json:"status"`
+	Conclusion  string               `json:"conclusion"`
+	StartedAt   time.Time            `json:"started_at"`
+	CompletedAt time.Time            `json:"completed_at"`
+	Name        string               `json:"name"`
+	Steps       []WorkflowRunJobStep `json:"steps"`
+}
+
 type WorkflowRunJobStep struct {
 	Name        string    `json:"name"`
 	Status      string    `json:"status"`
@@ -59,17 +83,6 @@ type WorkflowRunJobStep struct {
 	Number      int       `json:"number"`
 	StartedAt   time.Time `json:"started_at"`
 	CompletedAt time.Time `json:"completed_at"`
-}
-
-type WorkflowRunJob struct {
-	ID          int              `json:"id"`
-	RunID       int              `json:"run_id"`
-	Status      string           `json:"status"`
-	Conclusion  string           `json:"conclusion"`
-	StartedAt   time.Time        `json:"started_at"`
-	CompletedAt time.Time        `json:"completed_at"`
-	Name        string           `json:"name"`
-	Steps       []WorkflowRunJob `json:"steps"`
 }
 
 func (w *WorkflowRun) String() string {
@@ -86,8 +99,8 @@ type HeadCommit struct {
 	ID        string    `json:"id"`
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
-	Author    GitUser    `json:"author"`
-	Committer  GitUser    `json:"committer"`
+	Author    GitUser   `json:"author"`
+	Committer GitUser   `json:"committer"`
 }
 
 type GitUser struct {

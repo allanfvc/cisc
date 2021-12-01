@@ -1,7 +1,11 @@
 package build
 
+import "github.com/allanfvc/cisc/internal/domain/miner"
+
 type Runner interface {
-	Run(config RunConfig)
+	Run()
+  Config(config RunConfig, detector miner.ICIDetector) Runner
+  GetName() string
 }
 
 type RunConfig struct {

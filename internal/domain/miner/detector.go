@@ -2,26 +2,24 @@ package miner
 
 import (
 	"encoding/json"
+	"math"
 	"time"
 )
-
-const BuildEventFork = "fork"
-const BuildEventSync = "sync"
-const BuildEventCommit = "commit"
 
 type ICIDetector interface {
 	RetrieveBuildHistory(owner string, project string) (*BuildHistory, error)
 	LinearizeBuildHistory(builds *BuildHistory) (map[time.Time]BuildPoint, error)
+  RetrieveLogPath(owner string, project string, ID int) string
 }
 
 type BuildHistory struct {
 	Owner   string
 	Project string
-	Builds  map[string]map[time.Time]BuildPoint
+	Builds  map[*string]map[time.Time]BuildPoint
 }
 
 type BuildPoint struct {
-	ID           int          `json:"id"`
+	ID           *int64          `json:"id"`
 	StartAt      time.Time    `json:"start_at"`
 	EndAt        time.Time    `json:"end_at"`
 	BuildFeature BuildFeature `json:"build_feature"`
@@ -38,13 +36,19 @@ func (bp *BuildPoint) Duration() time.Duration {
 	return duration
 }
 
+func (bp *BuildPoint) DurationInSeconds() int {
+	seconds := bp.Duration().Seconds()
+	return int(math.Round(seconds))
+}
+
 type BuildFeature struct {
-	Branch      string    `json:"branch"`
-	Status      string    `json:"status"`
+	Branch      *string    `json:"branch"`
+	Status      *string    `json:"status"`
 	StartAt     time.Time `json:"start_at"`
 	Duration    int64     `json:"duration"`
-	BuildNumber int       `json:"build_number"`
-	EventType   string    `json:"event_type"`
+	BuildNumber *int       `json:"build_number"`
+	EventType   *string    `json:"event_type"`
+	Jobs        []BuildJob
 }
 
 type BuildJob struct {

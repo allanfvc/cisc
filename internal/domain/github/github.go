@@ -1,36 +1,16 @@
 package github
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/allanfvc/cisc/utils"
-	"github.com/hasura/go-graphql-client"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
-	"io"
-	"net/http"
+  "encoding/json"
+  "fmt"
+  "github.com/allanfvc/cisc/utils"
+  log "github.com/sirupsen/logrus"
+  "io"
 )
 
 const (
 	GraphqlEndpoint = "/graphql"
 )
-
-type GitHub struct {
-	ApiURl        string
-	GraphqlClient *graphql.Client
-	RestClient    *http.Client
-}
-
-func NewGithubClient(token string, url string) *GitHub {
-  validateGithubClientParams(token, url)
-  src := oauth2.StaticTokenSource(
-    &oauth2.Token{AccessToken: token},
-  )
-  httpClient := oauth2.NewClient(context.Background(), src)
-  client := graphql.NewClient(url+GraphqlEndpoint, httpClient)
-  return &GitHub{ApiURl: url, GraphqlClient: client, RestClient: httpClient}
-}
 
 func validateGithubClientParams(token string, url string) {
   if token == "" {
@@ -74,7 +54,7 @@ func (g GitHub) listPagedWorkflows(owner, repo string, page, perPage int) (*Work
 
 func (g *GitHub) ListWorkflowRunsByID(owner, repo string, ID int) ([]WorkflowRun, error) {
 	page := 0
-	perPage := 4
+	perPage := 100
 
 	response, err := g.listPagedWorkflowRunsByID(owner, repo, ID, page, perPage)
 	if err != nil {
@@ -97,22 +77,26 @@ func (g GitHub) listPagedWorkflowRunsByID(owner, repo string, ID, page, perPage 
 		return nil, err
 	}
 	body, _ := io.ReadAll(res.Body)
-  body2 := make(map[string]interface{})
-  err = json.Unmarshal(body, &body2)
 	response := &WorkflowRunResponse{}
 	err = json.Unmarshal(body, response)
 	var runs []WorkflowRun
 	for _, run := range response.WorkflowRun {
 		if !run.IsLogExpired() {
-			content, err := g.getLog(run.LogsUrl, run.ID)
-			if err != nil {
-				log.Infof("removed run with ID: %d due log expiration", run.ID)
-			} else {
-				run.LogContent = content
-			}
+			//content, err := g.getLog(run.LogsUrl, run.ID)
+			//if err != nil {
+			//	log.Infof("removed run with ID: %d due log expiration", run.ID)
+			//} else {
+			//	run.LogContent = content
+			//}
+      jobs, _ := g.getJobs(run.JobsUrl)
+      run.Jobs = jobs
+      for _, job := range jobs {
+        run.LogContent = g.getJobLog(job, owner, repo)
+      }
+      run.duration()
+      runs = append(runs, run)
 		}
-		run.duration()
-		runs = append(runs, run)
+
 	}
 	response.WorkflowRun = runs
 	return response, err
@@ -130,4 +114,40 @@ func (g GitHub) getLog(url string, id int) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("failed to get log for run with id: %v, with error %v", id, err)
+}
+
+func (g GitHub) GetLog(owner, repo string, ID int) (string, error) {
+  url := fmt.Sprintf("%s/repos/%s/%s/actions/jobs/%d/logs", g.ApiURl, owner, repo, ID)
+  return g.getLog(url, ID)
+}
+
+func (g GitHub) getJobs(url string) ([]WorkflowRunJob, error) {
+  res, err := g.request(url, "GET", nil)
+  if err == nil {
+    body, _ := io.ReadAll(res.Body)
+    response := &WorkflowRunJobResponse{}
+    err = json.Unmarshal(body, response)
+    if err != nil {
+      return nil, err
+    }
+    return response.Jobs, nil
+  }
+  return nil, fmt.Errorf("failed to get jobs for url %s, with error %v", url, err)
+}
+
+func (g GitHub) getJobLog(job WorkflowRunJob, owner, repo string) string {
+  log := ""
+  for _, step := range job.Steps {
+    log += g.getStepLog(step.Number, job, owner, repo)
+  }
+  return log
+}
+
+func (g GitHub) getStepLog(ID int, job WorkflowRunJob, owner, repo string) string {
+  url := fmt.Sprintf("https://github.com/%s/%s/commit/%s/checks/%d/logs/%d", owner, repo, job.HeadSha, job.ID, ID)
+  res, err := g.request(url, "GET", nil)
+  if err == nil {
+    fmt.Print(res)
+  }
+  return ""
 }

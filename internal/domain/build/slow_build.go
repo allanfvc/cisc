@@ -2,32 +2,59 @@ package build
 
 import (
   "github.com/allanfvc/cisc/internal/domain/miner"
+  "github.com/allanfvc/cisc/utils"
+  "github.com/pterm/pterm"
   log "github.com/sirupsen/logrus"
+  "sort"
+  "time"
 )
 
 type SlowBuildRunner struct {
 	detector miner.ICIDetector
+  config RunConfig
 }
 
-func NewSlowBuildRunner(token string, url string) *SlowBuildRunner {
-	return &SlowBuildRunner{
-		detector: miner.NewGitHubCIDetector(token, url),
-	}
+func (r SlowBuildRunner) Config(config RunConfig, detector miner.ICIDetector) Runner {
+  r.config = config
+  r.detector = detector
+  return r
 }
 
-func (s SlowBuildRunner) Run(config RunConfig) {
-	builds, err := s.detector.RetrieveBuildHistory(config.Owner, config.Project)
+func (r SlowBuildRunner) GetName() string {
+  return "slow builds"
+}
+
+func (r SlowBuildRunner) Run() {
+	builds, err := r.detector.RetrieveBuildHistory(r.config.Owner, r.config.Project)
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.visitHistory(builds)
+	r.visitHistory(builds)
 }
 
-func (s SlowBuildRunner) visitHistory(builds *miner.BuildHistory) {
-	log.Info("key,build_id,duration")
-  history, _ :=s.detector.LinearizeBuildHistory(builds)
-  for key, bp := range history {
-    log.Info(key, bp.ID, bp.Duration())
-  }
-	//increase=100*((lm.fit$coefficients[1]+lm.fit$coefficients[2]*nWeeks)/(lm.fit$coefficients[1]+lm.fit$coefficients[2]*1)-1)
+func (r SlowBuildRunner) visitHistory(builds *miner.BuildHistory) {
+	history, _ := r.detector.LinearizeBuildHistory(builds)
+	r.calculate(history)
+}
+
+func (r SlowBuildRunner) calculate(history map[time.Time]miner.BuildPoint) {
+	durationByWeek := make(map[string][]int)
+	for _, bp := range history {
+		week := utils.WeekStartDate(bp.StartAt).Format("2006-01-02")
+		value := durationByWeek[week]
+		value = append(value, bp.DurationInSeconds())
+		durationByWeek[week] = value
+	}
+	bars := pterm.Bars{}
+	for week, durations := range durationByWeek {
+		avg := utils.Average(durations...)
+		bars = append(bars, pterm.Bar{
+			Label: week,
+			Value: int(avg),
+		})
+	}
+  sort.Slice(bars, func(i, j int) bool {
+    return bars[i].Label < bars[j].Label
+  })
+	_ = pterm.DefaultBarChart.WithBars(bars).WithShowValue(true).Render()
 }
